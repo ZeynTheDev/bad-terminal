@@ -1,30 +1,115 @@
-# Bad Apple!! Played on Windows!
+# Bad Apple!! in the Terminal (responsive fork)
 
-## How do I use this?
+> **This is a fork of [Ubuntufanboy/bad-windows](https://github.com/Ubuntufanboy/bad-windows).**
+> The original idea and first implementation (turning the Bad Apple!! frames into
+> text and playing them in the Windows terminal) are by
+> [Ubuntufanboy](https://github.com/Ubuntufanboy). If you enjoy this, please go
+> star the original repository too.
 
-### Installing
+Plays *Bad Apple!!* as text art in your terminal, and **fits whatever window size
+you have**, even if you resize it while it plays.
 
-1. Click green button and download the zip
-2. Unzip the zip file
-3. press windows key
-4. type ``cmd`` or better yet ``powershell`` and open the app
-5. enter ``C:``.
-6. enter ``cd Users``.
-7. enter ``ls`` and look at the find the user you are logged in as
-8. enter ``cd`` then the name of your user
-9. enter ``cd Downloads``.
-10. enter ``cd bad-windows``.
-11. enter ``python convert.py`` If this gives you an error, Download python. There are many guides on how to install it
-12. enter python main.py`` and enjoy!
+## What's different from the original
 
-### I really love this program what can I do?
+| Original | This fork |
+| --- | --- |
+| Fixed 142×36 frame printed as one long line, so the picture only looks right in a window exactly 142 columns wide, and shears and wraps in anything else | Picture is fitted to your current window and re-fitted when you resize it |
+| Clears the screen with `cls` on every frame (slow, flickers) | Redraws in place with ANSI cursor movement, one write per frame |
+| Fixed `sleep()` between frames, so speed depends on your PC | Playback is clock-based and skips frames if your PC falls behind |
+| Frame size ignores the video's shape and the tall shape of text characters | Keeps the video's aspect ratio, corrected for character cell height |
+| Frames converted to many small `new*.png` files, text built one character at a time | Frames stored once in a single `frames.npz`, rendered with NumPy |
+| ASCII only | ASCII or sharper half-block mode (`--mode block`) |
 
-If you like the project there are a few things you can do
+## Requirements
 
-- make a github account and click the star button!
-- If you know how to code you can submit some changes or features to the app as you see fit
+- Python 3.8+
+- `pillow` and `numpy` (`pip install -r requirements.txt`)
+- A terminal that understands ANSI escape codes. **Windows Terminal** (the
+  default on Windows 11) or any Linux/macOS/WSL terminal works well. The old
+  standalone `cmd.exe` window is slow and may render poorly.
 
-### Well I don't want to do any of those... What else is there?
+## Quick start
 
-If you cannot code no worries! Maybe you can say hello on discord at Apolloiscool#7891
-I am always willing to meet new Bad Apple fans!
+Get the code with `git clone` or by downloading the ZIP, open a terminal in the
+project folder, then:
+
+**Windows (PowerShell / Windows Terminal)**
+
+```powershell
+pip install -r requirements.txt
+python convert.py      # one time: builds frames.npz from the PNGs in ./img
+python main.py
+```
+
+**Linux / WSL / macOS**
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python convert.py
+python main.py
+```
+
+Press `Ctrl+C` to quit.
+
+## Options
+
+```
+python main.py [--mode ascii|block] [--invert] [--fps N] [--cell-ratio R] [--data FILE]
+```
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `--mode ascii` / `--mode block` | `ascii` | `block` uses `▀ ▄ █` to show two pixels per character, which is much sharper |
+| `--invert` | off | Swap light and dark (handy on light terminal themes) |
+| `--fps N` | `15` | Playback speed |
+| `--cell-ratio R` | `2.0` | Height divided by width of your font's characters. Change it if the picture looks stretched or squashed |
+| `--data FILE` | `frames.npz` | Frame file made by `convert.py` |
+
+`convert.py` has its own options: `--src` (frame folder, default `img`),
+`--pattern` (default `*.png`), `--width` (stored width, default `192`; bigger
+looks better on very large terminals), and `--out`.
+
+## Using your own frames
+
+`convert.py` reads numbered PNG frames (for example `img/output000001.png`). If
+you have the video file and `ffmpeg`, you can extract frames yourself:
+
+```bash
+mkdir -p img
+ffmpeg -i badapple.mp4 -vf fps=15 img/output%06d.png
+```
+
+Keep the `fps` here in line with `--fps` when you play.
+
+## Troubleshooting
+
+- **Garbled or flickering picture:** use Windows Terminal instead of the old
+  `cmd.exe` window.
+- **Picture looks stretched or squashed:** adjust `--cell-ratio` (try `1.8`
+  to `2.4`), or change your terminal font.
+- **Picture is too small or too big:** make the window bigger or smaller, or
+  zoom the font with `Ctrl` + mouse wheel.
+- **`frames.npz not found`:** run `python convert.py` first.
+- **Playback speed feels wrong:** set `--fps` to match how your frames were
+  extracted.
+
+## How it works
+
+1. `convert.py` shrinks every frame to grayscale at a fixed master size and
+   saves all of them into one compressed `frames.npz`.
+2. `main.py` loads that file. For each frame it works out the biggest picture
+   that fits the current terminal while keeping the video's shape, resamples
+   the frame to that size, and maps brightness to characters.
+3. It draws the whole frame with a single write at the top-left of the screen,
+   and picks the frame to show from the clock so audio-free playback stays at
+   the right speed.
+
+## Credits
+
+- Original project: [Ubuntufanboy/bad-windows](https://github.com/Ubuntufanboy/bad-windows)
+  by [Ubuntufanboy](https://github.com/Ubuntufanboy). This fork keeps the
+  original idea and the frame workflow, and rewrites the converter and player.
+- *Bad Apple!!* is a song from the Touhou Project series; the shadow-art video
+  is by Anira. This repository is not affiliated with either.
