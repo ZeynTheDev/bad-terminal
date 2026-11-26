@@ -9,8 +9,9 @@ __pycache__/
 *.pyc
 .venv/
 
-# bring-your-own media (copyrighted, keep out of the repo)
+# stray media stays out of the repo; only the bundled soundtrack is tracked
 *.mp3
+!badapple.mp3
 *.wav
 *.ogg
 *.flac

@@ -78,14 +78,17 @@ looks better on very large terminals), and `--out`.
 
 ## Sound
 
-Sound is optional and works on every platform. This repository does **not**
-include the song, so bring your own file: put it next to `main.py` as
-`badapple.mp3` (or `.wav`, `.ogg`, `.flac`, `.m4a`, `.aac`) and it is picked up
-automatically, or pass it with `--audio path/to/file`.
+The repository includes `badapple.mp3`, which plays automatically next to the
+picture on every platform. To use another file (`.mp3`, `.wav`, `.ogg`, `.flac`,
+`.m4a` or `.aac`), pass it with `--audio`, or use `--mute` for silence.
 
 ```bash
-python main.py --audio ~/Music/badapple.mp3
+python main.py --audio ~/Music/other-version.mp3
 ```
+
+The song and the frames belong to their creators (see [Credits](#credits)).
+They are included for a non-commercial hobby project only; if you are a rights
+holder and want them removed, please open an issue and they will be taken down.
 
 The player tries these in order and uses the first one that works, so you
 normally don't have to install anything:
@@ -155,5 +158,17 @@ the same video: `ffmpeg -i badapple.mp4 -vn badapple.mp3`.
 - Original project: [Ubuntufanboy/bad-windows](https://github.com/Ubuntufanboy/bad-windows)
   by [Ubuntufanboy](https://github.com/Ubuntufanboy). This fork keeps the
   original idea and the frame workflow, and rewrites the converter and player.
-- *Bad Apple!!* is a song from the Touhou Project series; the shadow-art video
-  is by Anira. This repository is not affiliated with either.
+- *Bad Apple!!* was composed by ZUN (Team Shanghai Alice) for the Touhou Project
+  game *Lotus Land Story*. The vocal version "Bad Apple!! feat. nomico" is by
+  Alstroemeria Records (arrangement: Masayoshi Minoshima, vocals: nomico,
+  lyrics: Haruka), and the shadow-art video is by Anira, from a storyboard by
+  Μμ. This repository is not affiliated with any of them. The soundtrack and
+  the frames come from their work and are shared here only for a non-commercial
+  hobby project; if you are a rights holder and want them removed, please open
+  an issue. Please support the original creators, for example through
+  Alstroemeria Records' official releases.
+
+## Licensing
+
+The soundtrack and the frames are **not** covered by any license of this
+project's code. See [NOTICE.md](NOTICE.md) for who owns what.
