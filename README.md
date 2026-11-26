@@ -19,6 +19,7 @@ you have**, even if you resize it while it plays.
 | Frame size ignores the video's shape and the tall shape of text characters | Keeps the video's aspect ratio, corrected for character cell height |
 | Frames converted to many small `new*.png` files, text built one character at a time | Frames stored once in a single `frames.npz`, rendered with NumPy |
 | ASCII only | ASCII or sharper half-block mode (`--mode block`) |
+| No sound | Optional sound on Windows, macOS and Linux (`--audio`), no extra install needed on Windows/macOS |
 
 ## Requirements
 
@@ -57,6 +58,7 @@ Press `Ctrl+C` to quit.
 
 ```
 python main.py [--mode ascii|block] [--invert] [--fps N] [--cell-ratio R] [--data FILE]
+               [--audio FILE] [--mute] [--audio-offset SEC]
 ```
 
 | Option | Default | What it does |
@@ -66,10 +68,46 @@ python main.py [--mode ascii|block] [--invert] [--fps N] [--cell-ratio R] [--dat
 | `--fps N` | `15` | Playback speed |
 | `--cell-ratio R` | `2.0` | Height divided by width of your font's characters. Change it if the picture looks stretched or squashed |
 | `--data FILE` | `frames.npz` | Frame file made by `convert.py` |
+| `--audio FILE` | auto | Sound file to play along (see [Sound](#sound)) |
+| `--mute` | off | Never play sound |
+| `--audio-offset SEC` | `0` | Delay the picture by SEC seconds if the sound is late (negative = picture starts earlier) |
 
 `convert.py` has its own options: `--src` (frame folder, default `img`),
 `--pattern` (default `*.png`), `--width` (stored width, default `192`; bigger
 looks better on very large terminals), and `--out`.
+
+## Sound
+
+Sound is optional and works on every platform. This repository does **not**
+include the song, so bring your own file: put it next to `main.py` as
+`badapple.mp3` (or `.wav`, `.ogg`, `.flac`, `.m4a`, `.aac`) and it is picked up
+automatically, or pass it with `--audio path/to/file`.
+
+```bash
+python main.py --audio ~/Music/badapple.mp3
+```
+
+The player tries these in order and uses the first one that works, so you
+normally don't have to install anything:
+
+| Platform | Tried in this order |
+| --- | --- |
+| Windows | built-in Windows media API (mp3, wav), `ffplay`, `mpv`, VLC, `pygame` |
+| macOS | built-in `afplay`, `ffplay`, `mpv`, VLC, `pygame` |
+| Linux | `ffplay`, `mpv`, VLC, `mpg123`, `paplay`, `aplay`, `pygame` |
+
+On Linux, `sudo apt install ffmpeg` is the easiest way to get a player.
+`pip install pygame` is a last-resort fallback that works anywhere. If no
+player works, the picture still plays and you get a message saying why.
+
+**Keeping sound and picture together.** Playback is clock-based, so they won't
+drift apart. Some players take 100-300 ms to start, though. If the sound
+arrives late, delay the picture a little: `--audio-offset 0.2` (adjust until it
+feels right). Use `--fps` to match how your frames were extracted.
+
+**WSL:** Windows' built-in audio isn't reachable from inside WSL. Sound there
+needs a Linux player *and* working audio (WSLg on Windows 11 usually has it).
+If it doesn't work, run the player from Windows PowerShell instead.
 
 ## Using your own frames
 
@@ -81,7 +119,8 @@ mkdir -p img
 ffmpeg -i badapple.mp4 -vf fps=15 img/output%06d.png
 ```
 
-Keep the `fps` here in line with `--fps` when you play.
+Keep the `fps` here in line with `--fps` when you play. To pull the sound out of
+the same video: `ffmpeg -i badapple.mp4 -vn badapple.mp3`.
 
 ## Troubleshooting
 
@@ -94,6 +133,10 @@ Keep the `fps` here in line with `--fps` when you play.
 - **`frames.npz not found`:** run `python convert.py` first.
 - **Playback speed feels wrong:** set `--fps` to match how your frames were
   extracted.
+- **No sound / "Audio disabled":** read the message, it lists what was tried.
+  Install a player (`sudo apt install ffmpeg`, `brew install ffmpeg`, or
+  `winget install ffmpeg`) or use a `.wav`/`.mp3` file.
+- **Sound starts after the picture:** try `--audio-offset 0.2` (or more).
 
 ## How it works
 
@@ -103,8 +146,9 @@ Keep the `fps` here in line with `--fps` when you play.
    that fits the current terminal while keeping the video's shape, resamples
    the frame to that size, and maps brightness to characters.
 3. It draws the whole frame with a single write at the top-left of the screen,
-   and picks the frame to show from the clock so audio-free playback stays at
-   the right speed.
+   and picks the frame to show from the clock, so the speed stays right.
+4. If you gave it a sound file, `audio.py` starts it in the background just
+   before the clock starts and stops it when the video ends or you press Ctrl+C.
 
 ## Credits
 

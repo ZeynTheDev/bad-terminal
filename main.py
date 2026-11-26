@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Bad Apple!! in the terminal - fits any window size.
+"""Bad Apple!! in the terminal - fits any window size, with optional sound.
 
-    python main.py                 # ASCII, fits the current window
-    python main.py --mode block    # sharper: 2 pixels per character
-    python main.py --invert        # for light terminal themes
-    python main.py --fps 15 --cell-ratio 2.0
+    python main.py                    # picture (plus sound if badapple.mp3 is here)
+    python main.py --audio song.mp3   # play this sound file along with the picture
+    python main.py --mute             # picture only
+    python main.py --mode block       # sharper: 2 pixels per character
+    python main.py --invert           # for light terminal themes
+    python main.py --fps 15 --cell-ratio 2.0 --audio-offset 0.2
 
 Run `python convert.py` once first to create frames.npz.
 Press Ctrl+C to quit. Resize the window while playing - it adapts.
@@ -18,9 +20,12 @@ import time
 import numpy as np
 from PIL import Image
 
+import audio
+
 BOX = getattr(Image, "Resampling", Image).BOX
 RAMP = np.array(list(" .:-=+*#%@"))   # dark -> bright
 BLOCKS = np.array(list(" ▄▀█"))        # index = (top_pixel_on * 2) + bottom_pixel_on
+HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def enable_ansi():
@@ -37,6 +42,16 @@ def enable_ansi():
             k32.SetConsoleMode(ctypes.c_void_p(handle), mode.value | 0x0004)  # VT processing
     except Exception:
         os.system("")  # old trick that also flips the switch
+
+
+def find_audio():
+    """Look for badapple.mp3 / .wav / ... in the current folder or next to main.py."""
+    for folder in (os.getcwd(), HERE):
+        for ext in audio.AUDIO_EXTS:
+            path = os.path.join(folder, "badapple" + ext)
+            if os.path.isfile(path):
+                return path
+    return None
 
 
 def fit(term_cols, term_rows, aspect, cell_ratio):
@@ -77,26 +92,38 @@ def render(gray, cols, rows, mode, invert, term_cols, term_rows):
     return top + "\n".join(left + str(line) for line in lines)
 
 
-def play(frames, fps, mode, invert, cell_ratio):
+def play(frames, fps, mode, invert, cell_ratio, audio_path=None, offset=0.0):
     n, h, w = frames.shape
     aspect = w / h
     out = sys.stdout
-    out.write("\x1b[?1049h\x1b[?25l\x1b[2J")  # alternate screen, hide cursor, clear
+
+    # Start the sound first, so it is already running when the video clock starts.
+    stop_audio = None
+    if audio_path:
+        try:
+            stop_audio, _backend = audio.start(audio_path)
+        except audio.AudioError as exc:
+            print(f"Audio disabled: {exc}", file=sys.stderr)
+            time.sleep(2.5)  # let the person read it before the screen switches
+
     last_size, last_i = None, -1
     cols = rows = 1
-    t0 = time.perf_counter()
+    problem = None
     try:
+        out.write("\x1b[?1049h\x1b[?25l\x1b[2J")  # alternate screen, hide cursor, clear
+        # offset > 0 delays the picture (use it when the sound is late).
+        t0 = time.perf_counter() + offset
         while True:
-            now = time.perf_counter() - t0
-            i = int(now * fps)          # clock decides the frame -> never drifts
+            elapsed = time.perf_counter() - t0
+            i = max(0, int(elapsed * fps))  # clock decides the frame -> never drifts
             if i >= n:
                 break
-            if i == last_i:             # already shown, wait for the next one
-                time.sleep(max(0.0, (i + 1) / fps - now))
+            if i == last_i:                 # already shown, wait for the next one
+                time.sleep(max(0.0, (i + 1) / fps - elapsed))
                 continue
 
             size = shutil.get_terminal_size()
-            if size != last_size:       # first frame or window resized
+            if size != last_size:           # first frame or window resized
                 out.write("\x1b[2J")
                 last_size = size
                 cols, rows = fit(size.columns, size.lines, aspect, cell_ratio)
@@ -108,8 +135,12 @@ def play(frames, fps, mode, invert, cell_ratio):
     except KeyboardInterrupt:
         pass
     finally:
-        out.write("\x1b[?25h\x1b[?1049l")  # show cursor, leave alternate screen
+        if stop_audio:
+            problem = stop_audio()
+        out.write("\x1b[?25h\x1b[?1049l")   # show cursor, leave alternate screen
         out.flush()
+    if problem:
+        print(problem, file=sys.stderr)
 
 
 def main():
@@ -121,16 +152,32 @@ def main():
     ap.add_argument("--invert", action="store_true", help="swap light and dark")
     ap.add_argument("--cell-ratio", type=float, default=2.0,
                     help="character height / width of your font (default: 2.0)")
+    ap.add_argument("--audio", metavar="FILE",
+                    help="sound file to play along (default: badapple.mp3/.wav/... if present)")
+    ap.add_argument("--mute", action="store_true", help="never play sound")
+    ap.add_argument("--audio-offset", type=float, default=0.0, metavar="SEC",
+                    help="delay the picture by SEC seconds if the sound is late "
+                         "(negative: picture starts earlier). Try 0.2")
     args = ap.parse_args()
 
     if not os.path.exists(args.data):
         sys.exit(f"{args.data} not found. Run `python convert.py` first.")
     frames = np.load(args.data)["frames"]
 
+    audio_path = None
+    if not args.mute:
+        if args.audio:
+            if not os.path.isfile(args.audio):
+                sys.exit(f"Audio file not found: {args.audio}")
+            audio_path = args.audio
+        else:
+            audio_path = find_audio()
+
     if not (sys.stdout.encoding or "").lower().startswith("utf"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     enable_ansi()
-    play(frames, args.fps, args.mode, args.invert, args.cell_ratio)
+    play(frames, args.fps, args.mode, args.invert, args.cell_ratio,
+         audio_path, args.audio_offset)
 
 
 if __name__ == "__main__":

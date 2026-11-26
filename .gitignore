@@ -8,3 +8,14 @@ new*.png
 __pycache__/
 *.pyc
 .venv/
+
+# bring-your-own media (copyrighted, keep out of the repo)
+*.mp3
+*.wav
+*.ogg
+*.flac
+*.m4a
+*.aac
+*.mp4
+*.mkv
+*.webm
